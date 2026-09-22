@@ -937,10 +937,22 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   .app { flex-direction: column; }
   .sidebar { width: 100%; padding: 14px 16px; gap: 10px; border-inline-end: none; border-bottom: 1px solid var(--sidebar-line); }
   .brand { border-bottom: none; margin-bottom: 0; padding: 0; }
-  nav { flex-direction: row; flex: none; overflow-x: auto; gap: 6px; padding-bottom: 2px; }
+  /* Two separate scrollable rows (main nav, then levels) instead of one long
+     unlabeled strip - the levels used to be scrolled off-screen with nothing
+     hinting they were there. */
+  nav { flex-direction: column; flex: none; gap: 8px; }
+  .nav-group { display: flex; flex-direction: row; align-items: center; overflow-x: auto; gap: 6px; padding-bottom: 2px; }
   .nav-label { display: none; }
+  .nav-group-levels .nav-label {
+    display: block; flex-shrink: 0; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--sidebar-text-muted);
+    white-space: nowrap; margin-inline-end: 2px;
+  }
   .nav-item { width: auto; white-space: nowrap; }
-  .sidebar-footer { flex-direction: row; margin-top: 0; padding-top: 0; border-top: none; }
+  /* Dropping the "Level 1" text (keeping the numbered chip + count) makes all
+     four levels compact enough to fit without needing to scroll to find them. */
+  .level-item-text { display: none; }
+  .sidebar-footer { flex-direction: row; flex-wrap: wrap; margin-top: 0; padding-top: 0; border-top: none; }
   main { padding: 20px 16px; }
   .page-header h1 { font-size: 25px; }
   .field-row { grid-template-columns: 1fr; gap: 0; }

@@ -23,34 +23,38 @@ export default function Sidebar({ view, students, onNavigate, settings, onAddStu
       </button>
 
       <nav>
-        <div className="nav-label">{t('overview')}</div>
-        <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => onNavigate('dashboard')}>
-          <Icon name="home" />
-          {t('dashboard')}
-        </button>
-
-        <div className="nav-label">{t('finance')}</div>
-        <button className={`nav-item ${view === 'income' ? 'active' : ''}`} onClick={() => onNavigate('income')}>
-          <Icon name="chart" />
-          {t('income_report')}
-        </button>
-        <button className={`nav-item ${view === 'expenses' ? 'active' : ''}`} onClick={() => onNavigate('expenses')}>
-          <Icon name="wallet" />
-          {t('nav_expenses')}
-        </button>
-
-        <div className="nav-label">{t('levels')}</div>
-        {LEVELS.map((l) => (
-          <button
-            key={l}
-            className={`nav-item level-item lv-${l} ${view === `level-${l}` ? 'active' : ''}`}
-            onClick={() => onNavigate(`level-${l}`)}
-          >
-            <span className="level-chip">{l}</span>
-            {t('level', { n: l })}
-            <span className="nav-count">{countFor(l)}</span>
+        <div className="nav-group">
+          <div className="nav-label">{t('overview')}</div>
+          <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => onNavigate('dashboard')}>
+            <Icon name="home" />
+            {t('dashboard')}
           </button>
-        ))}
+
+          <div className="nav-label">{t('finance')}</div>
+          <button className={`nav-item ${view === 'income' ? 'active' : ''}`} onClick={() => onNavigate('income')}>
+            <Icon name="chart" />
+            {t('income_report')}
+          </button>
+          <button className={`nav-item ${view === 'expenses' ? 'active' : ''}`} onClick={() => onNavigate('expenses')}>
+            <Icon name="wallet" />
+            {t('nav_expenses')}
+          </button>
+        </div>
+
+        <div className="nav-group nav-group-levels">
+          <div className="nav-label">{t('levels')}</div>
+          {LEVELS.map((l) => (
+            <button
+              key={l}
+              className={`nav-item level-item lv-${l} ${view === `level-${l}` ? 'active' : ''}`}
+              onClick={() => onNavigate(`level-${l}`)}
+            >
+              <span className="level-chip">{l}</span>
+              <span className="level-item-text">{t('level', { n: l })}</span>
+              <span className="nav-count">{countFor(l)}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
       <div className="sidebar-footer">
