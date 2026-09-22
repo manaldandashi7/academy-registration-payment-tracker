@@ -26,6 +26,9 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [passwordStep, setPasswordStep] = useState('verify');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [archivedStudents, setArchivedStudents] = useState([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archiveActionId, setArchiveActionId] = useState(null);
 
   const passwordStrength = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
   const passwordMeter = [
@@ -316,6 +319,57 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
     }
   }
 
+  async function loadArchivedStudents() {
+    setError('');
+    setArchivedLoading(true);
+    const { data, error } = await supabase.from('students').select('*').eq('active', false).order('name');
+    setArchivedLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setArchivedStudents(data || []);
+  }
+
+  function openArchivedTab() {
+    setActiveTab('archived');
+    loadArchivedStudents();
+  }
+
+  async function handleRestoreStudent(student) {
+    setArchiveActionId(student.id);
+    const { error } = await supabase.from('students').update({ active: true }).eq('id', student.id);
+    setArchiveActionId(null);
+    if (error) {
+      notify({ message: t('restore_failed', { msg: error.message }), danger: true });
+      return;
+    }
+    setArchivedStudents((list) => list.filter((s) => s.id !== student.id));
+  }
+
+  async function handleDeleteArchivedStudent(student) {
+    // Best-effort count for the confirm message; not fatal if it fails.
+    const { count } = await supabase.from('payments').select('id', { count: 'exact', head: true }).eq('student_id', student.id);
+    const ok = await confirm({
+      title: t('delete_student'),
+      message: t('delete_student_confirm', { name: student.name, count: count || 0 }),
+      danger: true,
+      confirmLabel: t('delete'),
+    });
+    if (!ok) return;
+
+    setArchiveActionId(student.id);
+    // Deleting the student also deletes their payments automatically (the
+    // payments table's foreign key to students is set to cascade on delete).
+    const { error } = await supabase.from('students').delete().eq('id', student.id);
+    setArchiveActionId(null);
+    if (error) {
+      notify({ message: t('delete_failed', { msg: error.message }), danger: true });
+      return;
+    }
+    setArchivedStudents((list) => list.filter((s) => s.id !== student.id));
+  }
+
   function openPasswordModal() {
     setShowPasswordModal(true);
     setError('');
@@ -461,6 +515,16 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
             <Icon name="user" size={16} />
             {t('tab_account')}
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'archived'}
+            className={activeTab === 'archived' ? 'tab-btn active' : 'tab-btn'}
+            onClick={openArchivedTab}
+          >
+            <Icon name="box" size={16} />
+            {t('tab_archived')}
+          </button>
         </div>
 
         {activeTab === 'profile' ? (
@@ -509,7 +573,7 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
               </button>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'account' ? (
           <div className="settings-panel">
             <div className="settings-row">
               <div className="settings-row-icon"><Icon name="lock" size={20} /></div>
@@ -530,6 +594,40 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
                 {deleting ? t('deleting') : t('delete')}
               </button>
             </div>
+
+            {error && <div className="field-error">{error}</div>}
+          </div>
+        ) : (
+          <div className="settings-panel">
+            <div className="sub">{t('archived_help')}</div>
+
+            {archivedLoading ? (
+              <div className="loading-state small"><div className="spinner" aria-hidden="true" /></div>
+            ) : archivedStudents.length === 0 ? (
+              <div className="empty-state compact">
+                <div className="big">{t('no_archived_students')}</div>
+              </div>
+            ) : (
+              <div className="archived-list">
+                {archivedStudents.map((s) => (
+                  <div key={s.id} className="settings-row">
+                    <span className={`level-chip lv-${s.level}`}>{s.level}</span>
+                    <div className="settings-row-copy">
+                      <strong>{s.name}</strong>
+                      <span>{s.class}</span>
+                    </div>
+                    <div className="row-actions">
+                      <button type="button" className="btn" disabled={archiveActionId === s.id} onClick={() => handleRestoreStudent(s)}>
+                        {t('restore')}
+                      </button>
+                      <button type="button" className="btn danger" disabled={archiveActionId === s.id} onClick={() => handleDeleteArchivedStudent(s)}>
+                        {t('delete')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {error && <div className="field-error">{error}</div>}
           </div>
