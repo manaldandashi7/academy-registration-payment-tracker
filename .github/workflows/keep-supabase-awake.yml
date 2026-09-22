@@ -1,0 +1,34 @@
+name: Keep Supabase project awake
+
+# Supabase's free tier automatically pauses a project after 7 days with no
+# API activity - which would make the live site show connection errors
+# until someone manually resumes it from the Supabase dashboard. This just
+# sends one lightweight, read-only request every week so that never happens.
+#
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions
+# -> New repository secret), using the same values as .env.local:
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+
+on:
+  schedule:
+    - cron: '0 8 * * 1' # every Monday at 08:00 UTC - well inside the 7-day window
+  workflow_dispatch: {} # lets you also run it manually from the Actions tab, to test it
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ] || [ -z "${{ secrets.VITE_SUPABASE_ANON_KEY }}" ]; then
+            echo "::error::Missing repository secrets VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY - see the comment at the top of this workflow file."
+            exit 1
+          fi
+          status=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/settings?select=id&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}")
+          echo "Supabase responded with HTTP $status"
+          # Any response (even 401/404) means the request reached the project,
+          # which is all that's needed to count as activity.
