@@ -10,4 +10,13 @@ if (!url || !anonKey) {
   );
 }
 
-export const supabase = createClient(url, anonKey);
+export const supabase = createClient(url, anonKey, {
+  auth: {
+    // Keeps the signed-in session in the browser (localStorage) across page
+    // reloads, and silently renews it before it expires. With these off, every
+    // refresh looked like a fresh visit and sent people back to the login screen.
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});

@@ -30,12 +30,42 @@ export function addMonthsClamped(iso, n) {
   return new Date(year, monthIndex, day);
 }
 
-export function fmtDate(d) {
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+export function fmtDate(d, locale) {
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function fmtMonthYear(d) {
-  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+export function fmtMonthYear(d, locale) {
+  return d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+}
+
+// ---- month grouping helpers, shared by the income and expenses reports ----
+
+export function monthKeyOf(dateStr) {
+  return dateStr.slice(0, 7); // "YYYY-MM"
+}
+
+export function monthLabel(key, locale) {
+  const [y, m] = key.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+}
+
+function monthKeyFromOffset(monthsAgo) {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function currentMonthKey() {
+  return monthKeyFromOffset(0);
+}
+
+export function lastMonthKey() {
+  return monthKeyFromOffset(1);
+}
+
+/** The current month and the 5 before it, oldest first. */
+export function last6MonthKeys() {
+  return [5, 4, 3, 2, 1, 0].map(monthKeyFromOffset);
 }
 
 /** last payment (max date_paid) for a student, from a flat payments array */
