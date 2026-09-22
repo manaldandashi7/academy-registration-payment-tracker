@@ -745,7 +745,9 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 }
 
 @media (max-width: 700px) {
-  .login-screen { padding: 16px; }
+  /* Extra bottom clearance so a fixed on-screen badge from the hosting
+     provider never sits on top of the Start button. */
+  .login-screen { padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px) + 64px); }
   .login-panel {
     min-height: auto;
     max-height: none;
@@ -758,7 +760,7 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   .academy-subtitle { font-size: 0.95rem; }
   .welcome-verse { font-size: 1.15rem; padding: 8px 6px; line-height: 2.2; }
   .welcome-copy h2 { font-size: clamp(1.3rem, 5.5vw, 1.7rem); }
-  .welcome-copy p { font-size: 2.5rem; }
+  .welcome-copy p { font-size: 0.9rem; }
   .login-emblem { width: 180px; height: 180px; margin-top: 20px; }
   .login-emblem span { font-size: 74px; }
   .welcome-actions { flex-direction: column; width: 100%; }
