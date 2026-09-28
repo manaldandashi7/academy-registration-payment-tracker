@@ -81,7 +81,7 @@ export default function App() {
   }
 
   // ---- data loading + realtime, once signed in ----
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(async (isRetry = false) => {
     setLoadError('');
     try {
     const [studentsRes, paymentsRes, expensesRes, settingsRes] = await Promise.all([
@@ -92,6 +92,20 @@ export default function App() {
       // return this signed-in academy's own row, so there is at most one.
       supabase.from('settings').select('*').maybeSingle(),
     ]);
+
+    // A request can transiently fail with a JWT complaint (e.g. "JWT issued at
+    // future") right around a background token refresh - usually just a tiny
+    // clock skew on this machine, gone a moment later. Rather than show a
+    // scary banner for something that normally isn't a real problem, refresh
+    // the session and retry the whole load once before giving up.
+    const results = [studentsRes, paymentsRes, expensesRes, settingsRes];
+    const hasAuthError = results.some((r) => r.error && /jwt/i.test(r.error.message));
+    if (hasAuthError && !isRetry) {
+      await supabase.auth.refreshSession();
+      await loadAll(true);
+      return;
+    }
+
     if (studentsRes.error) setLoadError(studentsRes.error.message);
     else setStudents(studentsRes.data || []);
 

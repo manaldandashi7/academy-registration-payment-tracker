@@ -8,7 +8,9 @@ export default function PaymentModal({ student, payments, onClose }) {
   const { t, locale } = useLanguage();
   const suggestedMonth = fmtMonthYear(computeStatus(student, payments).dueDate, locale);
   const [datePaid, setDatePaid] = useState(isoOf(todayLocalMidnight()));
-  const [amount, setAmount] = useState('');
+  // Pre-filled from the student's own monthly fee, if one is set, so staff
+  // don't have to remember or retype it every month - still editable.
+  const [amount, setAmount] = useState(student.monthly_fee != null ? String(student.monthly_fee) : '');
   const [monthCovered, setMonthCovered] = useState(suggestedMonth);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');

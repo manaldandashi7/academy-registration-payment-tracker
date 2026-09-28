@@ -39,7 +39,7 @@ export default function LevelPage({ level, students, payments, academyName, onAd
         <table>
           <thead>
             <tr>
-              <th>{t('col_name')}</th><th>{t('col_phone')}</th><th>{t('col_class')}</th><th>{t('col_enrolled')}</th><th>{t('col_due_date')}</th><th>{t('col_status')}</th><th></th>
+              <th>{t('col_name')}</th><th>{t('col_phone')}</th><th>{t('col_class')}</th><th>{t('col_monthly_fee')}</th><th>{t('col_enrolled')}</th><th>{t('col_due_date')}</th><th>{t('col_status')}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -51,6 +51,9 @@ export default function LevelPage({ level, students, payments, academyName, onAd
                 </td>
                 <td data-label={t('col_phone')} dir="ltr" className="phone-cell">{s.phone}</td>
                 <td data-label={t('col_class')}>{s.class}</td>
+                <td data-label={t('col_monthly_fee')}>
+                  {s.monthly_fee != null ? Number(s.monthly_fee).toFixed(0) : <span className="cell-unset">—</span>}
+                </td>
                 <td data-label={t('col_enrolled')}>{fmtDate(parseISODateLocal(s.enrollment_date), locale)}</td>
                 <td data-label={t('col_due_date')}>{fmtDate(info.dueDate, locale)}</td>
                 <td data-label={t('col_status')}>

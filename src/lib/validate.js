@@ -126,7 +126,7 @@ export async function image(file) {
 
 // ---- whole-form validators -------------------------------------------------
 
-export function validateStudent({ name, phone: rawPhone, klass, address, enrollmentDate, level }) {
+export function validateStudent({ name, phone: rawPhone, klass, address, enrollmentDate, level, monthlyFee }) {
   const n = text(name, { fieldKey: 'student_name', max: LIMITS.name, required: true });
   if (n.error) return n;
   const p = phone(rawPhone, { required: true, fieldKey: 'parent_whatsapp' });
@@ -139,7 +139,9 @@ export function validateStudent({ name, phone: rawPhone, klass, address, enrollm
   if (d.error) return d;
   const lv = Number(level);
   if (![1, 2, 3, 4].includes(lv)) return fail('v_level');
-  return { value: { name: n.value, phone: p.value, class: c.value, address: a.value, enrollment_date: d.value, level: lv } };
+  const mf = amount(monthlyFee);
+  if (mf.error) return mf;
+  return { value: { name: n.value, phone: p.value, class: c.value, address: a.value, enrollment_date: d.value, level: lv, monthly_fee: mf.value } };
 }
 
 export function validatePayment({ datePaid, amount: rawAmount, monthCovered, notes }) {

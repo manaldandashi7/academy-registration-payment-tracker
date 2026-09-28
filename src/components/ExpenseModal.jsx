@@ -16,11 +16,26 @@ export default function ExpenseModal({ expense, onClose }) {
   const [notes, setNotes] = useState(expense?.notes || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // Same protection as the student form: editing an existing expense opens
+  // read-only until the pencil is pressed, so a stray tap can't change it.
+  const [locked, setLocked] = useState(isEdit);
 
   const isSalary = category === 'salary';
 
+  // Same reasoning as StudentModal: pressing Edit swaps that button into Save
+  // (same spot) - disabled until something's actually changed, so a second
+  // press there out of habit can't silently save-and-close with no edits.
+  const isDirty = !isEdit || (
+    category !== (expense?.category || 'salary')
+    || payee !== (expense?.payee || '')
+    || amount !== (expense?.amount != null ? String(expense.amount) : '')
+    || datePaid !== (expense?.date_paid || isoOf(todayLocalMidnight()))
+    || notes !== (expense?.notes || '')
+  );
+
   async function handleSubmit(e) {
     e.preventDefault();
+    if (locked) return;
     setError('');
 
     const checked = validateExpense({ category, payee, amount, datePaid, notes });
@@ -53,14 +68,14 @@ export default function ExpenseModal({ expense, onClose }) {
           <div className="modal-head-icon"><Icon name="wallet" size={22} /></div>
           <div>
             <h2>{isEdit ? t('edit_expense') : t('add_expense')}</h2>
-            <div className="sub">{isEdit ? t('expense_edit_sub') : t('expense_form_sub')}</div>
+            <div className="sub">{isEdit ? (locked ? t('viewing_expense_sub') : t('expense_edit_sub')) : t('expense_form_sub')}</div>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="field">
             <label id="e_category_label">{t('category_label')}</label>
-            <div className="level-picker category-picker" role="radiogroup" aria-labelledby="e_category_label">
+            <div className={`level-picker category-picker ${locked ? 'locked' : ''}`} role="radiogroup" aria-labelledby="e_category_label">
               {EXPENSE_CATEGORIES.map(({ id, icon }) => (
                 <label key={id} className={`level-option cat-${id} ${category === id ? 'selected' : ''}`}>
                   <input
@@ -68,6 +83,7 @@ export default function ExpenseModal({ expense, onClose }) {
                     name="e_category"
                     value={id}
                     checked={category === id}
+                    disabled={locked}
                     onChange={() => setCategory(id)}
                   />
                   <span className="level-chip"><Icon name={icon} size={15} /></span>
@@ -83,6 +99,7 @@ export default function ExpenseModal({ expense, onClose }) {
               <input
                 id="e_payee"
                 maxLength={LIMITS.payee}
+                readOnly={locked}
                 value={payee}
                 onChange={(e) => setPayee(e.target.value)}
                 placeholder={isSalary ? t('payee_salary_ph') : t('payee_other_ph')}
@@ -98,6 +115,7 @@ export default function ExpenseModal({ expense, onClose }) {
                 max="10000000"
                 step="0.01"
                 required
+                disabled={locked}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={t('expense_amount_ph')}
@@ -107,18 +125,31 @@ export default function ExpenseModal({ expense, onClose }) {
 
           <div className="field">
             <label htmlFor="e_date">{t('expense_date')}</label>
-            <input id="e_date" type="date" required min="2000-01-01" value={datePaid} onChange={(e) => setDatePaid(e.target.value)} />
+            <input id="e_date" type="date" required min="2000-01-01" disabled={locked} value={datePaid} onChange={(e) => setDatePaid(e.target.value)} />
           </div>
 
           <div className="field">
             <label htmlFor="e_notes">{t('notes_optional')}</label>
-            <textarea id="e_notes" rows={2} maxLength={LIMITS.notes} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('notes_ph')} />
+            <textarea id="e_notes" rows={2} maxLength={LIMITS.notes} readOnly={locked} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('notes_ph')} />
           </div>
 
           {error && <div className="field-error">{error}</div>}
+          {!locked && !isDirty && <div className="field-hint">{t('no_changes_hint')}</div>}
           <div className="modal-actions">
-            <button type="button" className="btn ghost" onClick={onClose}>{t('cancel')}</button>
-            <button type="submit" className="btn-cta" disabled={saving}>{saving ? t('saving') : t('save_expense')}</button>
+            {locked ? (
+              <>
+                <button type="button" className="btn ghost" onClick={onClose}>{t('close')}</button>
+                <button type="button" className="btn-cta" onClick={() => setLocked(false)}>
+                  <Icon name="edit" size={15} />
+                  {t('edit')}
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn ghost" onClick={onClose}>{t('cancel')}</button>
+                <button type="submit" className="btn-cta" disabled={saving || !isDirty}>{saving ? t('saving') : t('save_expense')}</button>
+              </>
+            )}
           </div>
         </form>
       </div>

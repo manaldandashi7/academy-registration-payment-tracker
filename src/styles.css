@@ -311,6 +311,7 @@ tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: rgba(0,0,0,0.015); }
 .student-name { font-weight: 600; }
 .student-sub { color: var(--muted); font-size: 12.5px; }
+.cell-unset { color: var(--muted); opacity: 0.6; }
 
 .badge {
   display: inline-flex; align-items: center; gap: 5px;
@@ -878,6 +879,20 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   font-size: 14px; font-family: inherit; background: var(--paper); color: var(--ink);
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+/* Locked (viewing, not editing) fields: readOnly for text, disabled for
+   date/number/radio - both get the same flat, non-interactive look. */
+/* Radio buttons are excluded: browsers treat them as :read-only, and this
+   rule would otherwise un-hide the invisible radio inside each level tile. */
+.field input:not([type="radio"]):read-only,
+.field input:not([type="radio"]):disabled,
+.field textarea:read-only {
+  background: var(--line); color: var(--ink); cursor: default; opacity: 1;
+}
+.field input:not([type="radio"]):focus:read-only,
+.field input:not([type="radio"]):focus:disabled { outline: none; border-color: var(--line); }
+.level-picker.locked .level-option { cursor: default; }
+.level-picker.locked .level-option:not(.selected) { opacity: 0.5; }
+.level-picker.locked .level-option:hover { transform: none; border-color: var(--line); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; align-items: center; }
 .modal-actions .btn { padding: 9px 16px; font-size: 13.5px; }
 .field-error { color: var(--danger); font-size: 12.5px; margin-top: 4px; }

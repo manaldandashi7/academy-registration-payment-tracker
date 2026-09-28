@@ -160,6 +160,14 @@ test('whole student form: valid data passes and is cleaned, attacks fail', () =>
   }
   assert.ok(validateStudent({ ...base, address: 'x'.repeat(LIMITS.address + 1) }).error);
   assert.ok(validateStudent({ ...base, klass: '' }).error);
+
+  // monthly_fee: optional, but must be a sane amount when given
+  assert.equal(validateStudent({ ...base }).value.monthly_fee, null);
+  assert.equal(validateStudent({ ...base, monthlyFee: '' }).value.monthly_fee, null);
+  assert.equal(validateStudent({ ...base, monthlyFee: '50' }).value.monthly_fee, 50);
+  for (const monthlyFee of ['-5', '1e9', 'abc', '50; DROP TABLE students']) {
+    assert.ok(validateStudent({ ...base, monthlyFee }).error, `monthly_fee accepted: ${monthlyFee}`);
+  }
 });
 
 test('whole payment form: bad amounts, dates, month and oversize notes fail', () => {
