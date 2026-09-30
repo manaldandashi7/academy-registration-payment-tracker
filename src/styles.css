@@ -116,6 +116,9 @@ button { font-family: inherit; }
   flex-direction: column;
   padding: 22px 14px;
   gap: 4px;
+  /* Stays in view while the page scrolls, so Settings / Sign out at the
+     bottom are always reachable instead of sitting below a long roster. */
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
 .brand {
   display: flex;
@@ -330,11 +333,15 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   border: 1px solid var(--line); background: var(--paper-raised); color: var(--muted); cursor: pointer;
 }
 .row-menu-trigger:hover { color: var(--ink); border-color: var(--muted); }
+/* Rendered at page level (portal) with top/left/right set inline from the
+   button's position - see RowMenu.jsx for why. */
 .row-menu-list {
-  position: absolute; z-index: 20; top: calc(100% + 6px); inset-inline-end: 0;
+  position: fixed; z-index: 40;
   min-width: 170px; background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px;
   box-shadow: 0 12px 28px rgba(20,20,15,0.14); padding: 6px; display: flex; flex-direction: column; gap: 2px;
 }
+/* Outside .app, so it doesn't inherit the Arabic font from there. */
+.row-menu-list[dir="rtl"] { font-family: "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif; }
 .row-menu-item {
   display: flex; align-items: center; gap: 9px; width: 100%; text-align: start;
   border: none; background: none; padding: 8px 10px; border-radius: 8px;
@@ -418,6 +425,55 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   background: var(--lv-soft); color: var(--lv-text);
 }
 .expense-notes { color: var(--muted); font-size: 12.5px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Search box (Level pages, Payments page) */
+.search-box {
+  position: relative; display: flex; align-items: center; max-width: 420px; margin-bottom: 16px;
+}
+.search-box input {
+  width: 100%; padding-block: 11px; padding-inline-start: 40px; padding-inline-end: 36px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper-raised);
+  font-size: 14px; font-family: inherit; color: var(--ink); box-shadow: var(--shadow);
+}
+.search-box input:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
+.search-box input::-webkit-search-cancel-button { display: none; }
+.search-icon { position: absolute; inset-inline-start: 14px; color: var(--muted); pointer-events: none; }
+.search-clear {
+  position: absolute; inset-inline-end: 8px; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: var(--muted); cursor: pointer;
+}
+.search-clear:hover { background: var(--paper); color: var(--ink); }
+
+/* Payments page: one collapsible section per month */
+.month-list { display: flex; flex-direction: column; gap: 12px; }
+.month-group {
+  background: var(--paper-raised); border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.month-group.current { border-color: var(--brand); }
+.month-head {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 18px;
+  border: none; background: none; cursor: pointer; font-family: inherit; color: var(--ink); text-align: start;
+  border-radius: 18px;
+}
+.month-head:hover:not(:disabled) { background: var(--paper); }
+.month-head:disabled { cursor: default; }
+.month-caret { color: var(--muted); transition: transform 0.15s ease; transform: rotate(-90deg); }
+.app[dir="rtl"] .month-caret { transform: rotate(90deg); }
+.month-group.open .month-caret { transform: rotate(0deg); }
+.month-name { font-weight: 700; font-size: 15px; }
+.month-tag {
+  padding: 2px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand);
+  font-size: 11.5px; font-weight: 700;
+}
+.month-meta { margin-inline-start: auto; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.month-meta strong { color: var(--brand); font-size: 15px; }
+.month-empty { padding: 4px 18px 18px; color: var(--muted); font-size: 13.5px; }
+/* The month card is already the frame - the table inside doesn't need its own. */
+.month-group table { border: none; box-shadow: none; border-top: 1px solid var(--line); background: transparent; }
+.month-group thead tr:first-child th:first-child,
+.month-group thead tr:first-child th:last-child { border-radius: 0; }
 
 .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .select-wrap { position: relative; display: inline-flex; }
@@ -688,6 +744,13 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   box-shadow: 0 22px 35px rgba(230, 189, 122, 0.36);
   filter: brightness(1.01);
 }
+.switch-account-link {
+  display: block; margin: 16px auto 0; position: relative; z-index: 1;
+  background: none; border: none; cursor: pointer;
+  color: #4d737a; font-size: 0.85rem; font-weight: 600; font-family: inherit;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.switch-account-link:hover { color: #1e3e45; }
 .login-emblem {
   width: clamp(160px, min(30vw, 28vh), 240px);
   height: clamp(160px, min(30vw, 28vh), 240px);
@@ -881,15 +944,16 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--brand); outline-offset: 0; border-color: var(--brand); }
 /* Locked (viewing, not editing) fields: readOnly for text, disabled for
    date/number/radio - both get the same flat, non-interactive look. */
-/* Radio buttons are excluded: browsers treat them as :read-only, and this
-   rule would otherwise un-hide the invisible radio inside each level tile. */
-.field input:not([type="radio"]):read-only,
-.field input:not([type="radio"]):disabled,
+/* Radios and checkboxes are excluded: browsers treat them as :read-only, and
+   this rule would otherwise un-hide the invisible radio in each level tile and
+   the invisible "Remember me" checkbox on the login screen. */
+.field input:not([type="radio"]):not([type="checkbox"]):read-only,
+.field input:not([type="radio"]):not([type="checkbox"]):disabled,
 .field textarea:read-only {
   background: var(--line); color: var(--ink); cursor: default; opacity: 1;
 }
-.field input:not([type="radio"]):focus:read-only,
-.field input:not([type="radio"]):focus:disabled { outline: none; border-color: var(--line); }
+.field input:not([type="radio"]):not([type="checkbox"]):focus:read-only,
+.field input:not([type="radio"]):not([type="checkbox"]):focus:disabled { outline: none; border-color: var(--line); }
 .level-picker.locked .level-option { cursor: default; }
 .level-picker.locked .level-option:not(.selected) { opacity: 0.5; }
 .level-picker.locked .level-option:hover { transform: none; border-color: var(--line); }
@@ -955,7 +1019,7 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 
 @media (max-width: 760px) {
   .app { flex-direction: column; }
-  .sidebar { width: 100%; padding: 14px 16px; gap: 10px; border-inline-end: none; border-bottom: 1px solid var(--sidebar-line); }
+  .sidebar { width: 100%; padding: 14px 16px; gap: 10px; border-inline-end: none; border-bottom: 1px solid var(--sidebar-line); position: static; height: auto; overflow: visible; }
   .brand { border-bottom: none; margin-bottom: 0; padding: 0; }
   nav { flex-direction: row; flex: none; overflow-x: auto; gap: 6px; padding-bottom: 2px; }
   .nav-label { display: none; }
@@ -965,6 +1029,8 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   .page-header h1 { font-size: 25px; }
   .field-row { grid-template-columns: 1fr; gap: 0; }
   .attention-row .row-actions { width: 100%; }
+  .search-box { max-width: none; }
+  .month-head { flex-wrap: wrap; padding: 12px 14px; }
   table, thead, tbody { display: block; width: 100%; }
   thead { display: none; }
   tbody tr { display: block; border-bottom: 8px solid var(--paper); padding: 10px 0; }
@@ -1063,6 +1129,7 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   margin-top: 8px;
   flex-wrap: wrap;
@@ -1080,6 +1147,13 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   user-select: none;
 }
 
+/* The login form's ".login-card .field label" rule (block, 16px, bottom
+   margin) would otherwise win over .remember-me - squashing the box against
+   the text and pushing the row out of line with "Forgot password?". */
+.login-card .field label.remember-me {
+  display: inline-flex; gap: 7px; margin: 0;
+  font-size: 13px; font-weight: 500; color: #466a68;
+}
 .remember-me input {
   position: absolute;
   opacity: 0;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase, setRememberMe as persistRememberMe } from '../supabaseClient';
 import { useLanguage } from '../i18n.jsx';
 import { email as validateEmail, image as validateImage, passwordLength, cleanText, errText, LIMITS } from '../lib/validate';
 
@@ -29,8 +29,9 @@ function Mascots() {
   );
 }
 
-export default function Login({ settings, mode = 'login', onEnteredAcademy, onAcademyConfigured }) {
+export default function Login({ settings, mode = 'login', onEnteredAcademy, onAcademyConfigured, onSignOut }) {
   const [email, setEmail] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [confirmEmail, setConfirmEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -145,6 +146,7 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
           return;
         }
 
+        persistRememberMe(true); // a brand-new account stays signed in on this device
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -279,6 +281,7 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
         return;
       }
 
+      persistRememberMe(rememberMe);
       const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
       if (loginError) {
         setError(loginError.message);
@@ -371,6 +374,12 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
               {loading ? (isArabic ? 'جاري الحفظ…' : 'Saving…') : (isArabic ? 'حفظ وإدخال المؤسسة' : 'Save and continue')}
             </button>
           </form>
+
+          {onSignOut && (
+            <button type="button" className="switch-account-link" onClick={onSignOut}>
+              {t('switch_account')}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -416,6 +425,12 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
               {t('start')}
             </button>
           </div>
+
+          {onSignOut && (
+            <button type="button" className="switch-account-link" onClick={onSignOut}>
+              {t('switch_account')}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -521,7 +536,7 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
                 {!isSignupMode && (
                   <div className="login-meta-row">
                     <label className="remember-me">
-                      <input type="checkbox" defaultChecked />
+                      <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
                       <span className="checkmark" aria-hidden="true">✓</span>
                       <span className="remember-text">{isArabic ? 'تذكرني' : 'Remember me'}</span>
                     </label>

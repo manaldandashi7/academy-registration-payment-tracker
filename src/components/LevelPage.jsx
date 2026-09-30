@@ -2,14 +2,21 @@ import { computeStatus, fmtDate, parseISODateLocal } from '../lib/dateUtils';
 import { buildReminderMessage, openWhatsApp } from '../lib/whatsapp';
 import Icon, { Friend } from './Icons.jsx';
 import RowMenu from './RowMenu.jsx';
+import SearchBox, { matchesSearch } from './SearchBox.jsx';
 import { useLanguage } from '../i18n.jsx';
+import { useEffect, useState } from 'react';
 
 export default function LevelPage({ level, students, payments, academyName, onAddStudent, onEditStudent, onArchiveStudent, onDeleteStudent, onRecordPayment }) {
   const { t, locale } = useLanguage();
-  const rows = students
+  const [query, setQuery] = useState('');
+  // Start each level with an empty search rather than carrying over the last one.
+  useEffect(() => { setQuery(''); }, [level]);
+
+  const allRows = students
     .filter((s) => Number(s.level) === level)
     .map((s) => ({ s, info: computeStatus(s, payments) }))
     .sort((a, b) => a.s.name.localeCompare(b.s.name));
+  const rows = query ? allRows.filter(({ s }) => matchesSearch(query, [s.name, s.phone, s.class, s.address])) : allRows;
 
   const statusLabel = (status) => (status === 'overdue' ? t('overdue') : status === 'duesoon' ? t('due_soon') : t('status_ok'));
 
@@ -20,7 +27,7 @@ export default function LevelPage({ level, students, payments, academyName, onAd
           <span className="level-chip level-chip-lg">{level}</span>
           <div>
             <h1>{t('level', { n: level })}</h1>
-            <div className="today">{t('students_count', { n: rows.length })}</div>
+            <div className="today">{t('students_count', { n: allRows.length })}</div>
           </div>
         </div>
         <button className="btn-cta" onClick={() => onAddStudent(level)}>
@@ -29,11 +36,19 @@ export default function LevelPage({ level, students, payments, academyName, onAd
         </button>
       </div>
 
-      {rows.length === 0 ? (
+      {allRows.length > 0 && (
+        <SearchBox value={query} onChange={setQuery} placeholder={t('search_students_ph')} />
+      )}
+
+      {allRows.length === 0 ? (
         <div className="empty-state">
           <Friend tone="green" />
           <div className="big">{t('no_students_level', { n: level })}</div>
           <p>{t('add_student_hint')}</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="empty-state compact">
+          <div className="big">{t('no_search_results')}</div>
         </div>
       ) : (
         <table>

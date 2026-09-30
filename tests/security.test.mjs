@@ -9,6 +9,21 @@ import {
   validateStudent, validatePayment, validateProfile, validateExpense, LIMITS,
 } from '../src/lib/validate.js';
 import { normalizePhoneForWa, buildReminderMessage } from '../src/lib/whatsapp.js';
+import { matchesSearch } from '../src/lib/search.js';
+
+test('search: Arabic letter variants, tashkeel, case and multi-word queries all match', () => {
+  const s = ['أحمد الخطيب', '+961 3 123 456', 'Grade 3'];
+  assert.ok(matchesSearch('احمد', s), 'alef variant');
+  assert.ok(matchesSearch('أَحْمَد', s), 'tashkeel in the query');
+  assert.ok(matchesSearch('الخطيب احمد', s), 'words in any order');
+  assert.ok(matchesSearch('grade', s), 'case-insensitive latin');
+  assert.ok(matchesSearch('123', s), 'phone digits');
+  assert.ok(matchesSearch('فاطمه', ['فاطمة']), 'taa marbuta vs haa');
+  assert.ok(matchesSearch('ليلي', ['ليلى']), 'alef maqsura vs yaa');
+  assert.ok(!matchesSearch('سارة', s), 'non-match');
+  assert.ok(matchesSearch('   ', s), 'blank query matches everything');
+  assert.ok(!matchesSearch('x', [null, undefined, '']), 'missing fields are safe');
+});
 
 const XSS_AND_INJECTION = [
   '<script>alert(1)</script>',

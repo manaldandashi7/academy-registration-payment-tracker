@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import LevelPage from './components/LevelPage.jsx';
 import IncomeReport from './components/IncomeReport.jsx';
+import PaymentsPage from './components/PaymentsPage.jsx';
 import ExpensesReport from './components/ExpensesReport.jsx';
 import StudentModal from './components/StudentModal.jsx';
 import PaymentModal from './components/PaymentModal.jsx';
@@ -19,12 +20,31 @@ const isValidAcademyName = (value) => {
   return trimmed.length > 0 && trimmed !== 'Your Academy' && trimmed !== 'My Academy';
 };
 
-const VALID_VIEW = /^(dashboard|income|expenses|level-[1-4])$/;
+const VALID_VIEW = /^(dashboard|payments|income|expenses|level-[1-4])$/;
+
+// Signed out automatically after this long without anyone using the app in
+// this browser, even with "Remember me" ticked.
+const INACTIVITY_LIMIT_MS = 14 * 24 * 60 * 60 * 1000;
+const LAST_ACTIVE_KEY = 'mahara.lastActive';
+
+function inactiveTooLong() {
+  try {
+    const last = Number(localStorage.getItem(LAST_ACTIVE_KEY));
+    return last > 0 && Date.now() - last > INACTIVITY_LIMIT_MS;
+  } catch {
+    return false;
+  }
+}
 
 // The current page (Dashboard / a level / Income / Expenses) lives in the URL's
 // hash, e.g. "#/level-2" - not just in memory. That's what makes the browser's
 // back/forward buttons step through the pages you've actually visited, the way
 // they do on any normal site, instead of doing nothing.
+function isWelcomeHash() {
+  const h = window.location.hash.replace(/^#\/?/, '');
+  return h === '' || h === 'welcome';
+}
+
 function viewFromHash() {
   if (typeof window === 'undefined') return 'dashboard';
   const h = window.location.hash.replace(/^#\/?/, '');
@@ -38,7 +58,8 @@ export default function App() {
   const [academyEntered, setAcademyEntered] = useState(false);
   const setupCompletedKey = 'academySetupCompleted';
   const [view, setView] = useState(viewFromHash);
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState([]); // active only - what every roster/count uses
+  const [allStudents, setAllStudents] = useState([]); // includes archived, for payment history
   const [payments, setPayments] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [settings, setSettings] = useState({ academy_name: 'Your Academy', logo_url: null, address: '', phone: '', owner_name: '' });
@@ -46,6 +67,7 @@ export default function App() {
 
   const [studentModal, setStudentModal] = useState(null); // { student, presetLevel } | null
   const [paymentModalStudentId, setPaymentModalStudentId] = useState(null);
+  const [editingPayment, setEditingPayment] = useState(null); // an existing payment row being viewed/edited
   const [expenseModal, setExpenseModal] = useState(null); // { expense } | null
   const [settingsOpen, setSettingsOpen] = useState(false);
   // True once the first load has finished for the current sign-in - lets the
@@ -57,17 +79,82 @@ export default function App() {
   // ---- auth ----
   useEffect(() => {
     setAcademyEntered(false);
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => listener.subscription.unsubscribe();
+    let cancelled = false;
+    let listener = null;
+    const start = () => {
+      if (cancelled) return;
+      supabase.auth.getSession().then(({ data }) => { if (!cancelled) setSession(data.session); });
+      listener = supabase.auth.onAuthStateChange((_event, s) => setSession(s)).data;
+    };
+    // A remembered session would otherwise last forever. If this browser
+    // hasn't been used for INACTIVITY_LIMIT_MS, sign out first so the next
+    // person to open it has to log in again.
+    if (inactiveTooLong()) supabase.auth.signOut({ scope: 'local' }).finally(start);
+    else start();
+    return () => {
+      cancelled = true;
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
-  // ---- keep `view` and the URL hash in sync, so back/forward work ----
+  // Record "last used" while signed in - on load and on any click/keypress,
+  // written at most once a minute. inactiveTooLong() above reads it.
   useEffect(() => {
-    const onHashChange = () => setView(viewFromHash());
+    if (!session) return;
+    let lastWrite = 0;
+    const touch = () => {
+      const now = Date.now();
+      if (now - lastWrite < 60_000) return;
+      lastWrite = now;
+      try { localStorage.setItem(LAST_ACTIVE_KEY, String(now)); } catch { /* storage blocked */ }
+    };
+    touch();
+    window.addEventListener('pointerdown', touch);
+    window.addEventListener('keydown', touch);
+    return () => {
+      window.removeEventListener('pointerdown', touch);
+      window.removeEventListener('keydown', touch);
+    };
+  }, [session]);
+
+  // ---- keep `view` and the URL hash in sync, so back/forward work ----
+  // The welcome screen is a page in the history too ("#/welcome", or no hash
+  // at all): pressing Back from the first page inside the academy lands on it,
+  // and Forward from it goes back in.
+  useEffect(() => {
+    const onHashChange = () => {
+      if (isWelcomeHash()) {
+        setAcademyEntered(false);
+      } else {
+        setView(viewFromHash());
+        setAcademyEntered(true);
+      }
+    };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // Back/Forward on the login screen can fire the listener above too - while
+  // signed out, never count as "entered", so signing in still shows welcome.
+  useEffect(() => {
+    if (!session) setAcademyEntered(false);
+  }, [session, academyEntered]);
+
+  // "Start" on the welcome screen. Makes sure there's a welcome entry right
+  // behind the page being entered, so Back returns to the welcome screen.
+  function enterAcademy() {
+    if (isWelcomeHash()) {
+      window.location.hash = '/dashboard'; // pushes a new entry after the welcome one
+    } else {
+      // Reloaded on e.g. "#/level-2": turn this entry into the welcome one,
+      // then push the page that was open, so Back still has somewhere to go.
+      const current = viewFromHash();
+      window.history.replaceState(null, '', '#/welcome');
+      window.history.pushState(null, '', `#/${current}`);
+      setView(current);
+    }
+    setAcademyEntered(true);
+  }
 
   // Changing the hash is what actually creates the browser-history entry;
   // the hashchange listener above then updates `view` to match. Sidebar links,
@@ -85,7 +172,10 @@ export default function App() {
     setLoadError('');
     try {
     const [studentsRes, paymentsRes, expensesRes, settingsRes] = await Promise.all([
-      supabase.from('students').select('*').eq('active', true),
+      // All students, archived included: the Payments page still needs the
+      // names behind an archived student's past payments. Everything else
+      // uses the active-only list derived from this below.
+      supabase.from('students').select('*'),
       supabase.from('payments').select('*'),
       supabase.from('expenses').select('*'),
       // No .eq() filter here on purpose: the database's own rules only ever
@@ -107,7 +197,10 @@ export default function App() {
     }
 
     if (studentsRes.error) setLoadError(studentsRes.error.message);
-    else setStudents(studentsRes.data || []);
+    else {
+      setAllStudents(studentsRes.data || []);
+      setStudents((studentsRes.data || []).filter((s) => s.active));
+    }
 
     if (paymentsRes.error) setLoadError(paymentsRes.error.message);
     else setPayments(paymentsRes.data || []);
@@ -187,11 +280,15 @@ export default function App() {
   if (!session) {
     return (
       <Login
+        // Separate keys for the signed-out and signed-in Login screens, so
+        // signing out from the welcome screen starts fresh at the login form
+        // instead of React keeping the old one's "welcome" state.
+        key="signed-out"
         settings={settings}
-        onEnteredAcademy={() => setAcademyEntered(true)}
+        onEnteredAcademy={enterAcademy}
         onAcademyConfigured={(nextSettings) => {
           setSettings(nextSettings);
-          setAcademyEntered(true);
+          enterAcademy();
         }}
       />
     );
@@ -211,9 +308,11 @@ export default function App() {
   if (!academyEntered) {
     return (
       <Login
+        key="signed-in"
         settings={settings}
         mode={needsAcademySetup ? 'setup' : 'welcome'}
-        onEnteredAcademy={() => setAcademyEntered(true)}
+        onEnteredAcademy={enterAcademy}
+        onSignOut={() => supabase.auth.signOut()}
         onAcademyConfigured={(nextSettings) => {
           // Deliberately not setting academyEntered here: Login already switches
           // itself to its own welcome screen once setup is saved, so the user
@@ -244,6 +343,22 @@ export default function App() {
     // Deleting the student also deletes their payments automatically (the
     // payments table's foreign key to students is set to cascade on delete).
     const { error } = await supabase.from('students').delete().eq('id', student.id);
+    if (error) notify({ message: t('delete_failed', { msg: error.message }), danger: true });
+  }
+
+  async function handleDeletePayment(payment) {
+    const student = allStudents.find((s) => s.id === payment.student_id);
+    const ok = await confirm({
+      title: t('delete_payment'),
+      message: t('delete_payment_confirm', {
+        name: student?.name || '—',
+        amount: payment.amount != null ? Number(payment.amount).toFixed(0) : '—',
+      }),
+      danger: true,
+      confirmLabel: t('delete'),
+    });
+    if (!ok) return;
+    const { error } = await supabase.from('payments').delete().eq('id', payment.id);
     if (error) notify({ message: t('delete_failed', { msg: error.message }), danger: true });
   }
 
@@ -318,6 +433,15 @@ export default function App() {
           />
         )}
 
+        {view === 'payments' && (
+          <PaymentsPage
+            payments={payments}
+            students={allStudents}
+            onEditPayment={(payment) => setEditingPayment(payment)}
+            onDeletePayment={handleDeletePayment}
+          />
+        )}
+
         {view === 'income' && <IncomeReport payments={payments} expenses={expenses} />}
 
         {view === 'expenses' && (
@@ -345,6 +469,15 @@ export default function App() {
           student={paymentModalStudent}
           payments={payments}
           onClose={() => setPaymentModalStudentId(null)}
+        />
+      )}
+
+      {editingPayment && (
+        <PaymentModal
+          payment={editingPayment}
+          student={allStudents.find((s) => s.id === editingPayment.student_id)}
+          payments={payments}
+          onClose={() => setEditingPayment(null)}
         />
       )}
 

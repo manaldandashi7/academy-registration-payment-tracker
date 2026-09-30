@@ -30,6 +30,10 @@ export default function Sidebar({ view, students, onNavigate, settings, onAddStu
         </button>
 
         <div className="nav-label">{t('finance')}</div>
+        <button className={`nav-item ${view === 'payments' ? 'active' : ''}`} onClick={() => onNavigate('payments')}>
+          <Icon name="receipt" />
+          {t('nav_payments')}
+        </button>
         <button className={`nav-item ${view === 'income' ? 'active' : ''}`} onClick={() => onNavigate('income')}>
           <Icon name="chart" />
           {t('income_report')}
