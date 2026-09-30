@@ -42,6 +42,10 @@ export default function Sidebar({ view, students, onNavigate, settings, onAddStu
           <Icon name="wallet" />
           {t('nav_expenses')}
         </button>
+        <button className={`nav-item ${view === 'balance' ? 'active' : ''}`} onClick={() => onNavigate('balance')}>
+          <Icon name="scale" />
+          {t('monthly_balance')}
+        </button>
 
         <div className="nav-label">{t('levels')}</div>
         {LEVELS.map((l) => (

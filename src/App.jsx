@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import LevelPage from './components/LevelPage.jsx';
 import IncomeReport from './components/IncomeReport.jsx';
+import BalancePage from './components/BalancePage.jsx';
 import PaymentsPage from './components/PaymentsPage.jsx';
 import ExpensesReport from './components/ExpensesReport.jsx';
 import StudentModal from './components/StudentModal.jsx';
@@ -20,7 +21,7 @@ const isValidAcademyName = (value) => {
   return trimmed.length > 0 && trimmed !== 'Your Academy' && trimmed !== 'My Academy';
 };
 
-const VALID_VIEW = /^(dashboard|payments|income|expenses|level-[1-4])$/;
+const VALID_VIEW = /^(dashboard|payments|balance|income|expenses|level-[1-4])$/;
 
 // Signed out automatically after this long without anyone using the app in
 // this browser, even with "Remember me" ticked.
@@ -443,6 +444,8 @@ export default function App() {
         )}
 
         {view === 'income' && <IncomeReport payments={payments} expenses={expenses} />}
+
+        {view === 'balance' && <BalancePage students={students} payments={payments} expenses={expenses} />}
 
         {view === 'expenses' && (
           <ExpensesReport
