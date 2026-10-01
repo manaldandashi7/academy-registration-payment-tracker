@@ -20,7 +20,7 @@ function dueText(info, t) {
   return t('due_in', { n: d });
 }
 
-export default function Dashboard({ students, payments, academyName, onRecordPayment, onAddStudent, onNavigate, onEditStudent, onArchiveStudent, onDeleteStudent }) {
+export default function Dashboard({ students, allStudents = students, payments, academyName, onRecordPayment, onAddStudent, onNavigate, onEditStudent, onArchiveStudent, onDeleteStudent }) {
   const { t, locale } = useLanguage();
   const withStatus = students.map((s) => ({ s, info: computeStatus(s, payments) }));
   const overdue = withStatus.filter((x) => x.info.status === 'overdue').sort((a, b) => a.info.diffDays - b.info.diffDays);
@@ -40,6 +40,11 @@ export default function Dashboard({ students, payments, academyName, onRecordPay
     { key: 'duesoon', icon: 'clock', num: dueSoon.length, label: t('due_soon') },
     { key: 'ok', icon: 'check', num: ok.length, label: t('paid_up') },
     { key: 'total', icon: 'users', num: students.length, label: t('students') },
+    // Everyone who has ever enrolled: active + archived (permanently deleted students are gone).
+    {
+      key: 'ever', icon: 'box', num: allStudents.length, label: t('ever_enrolled'),
+      sub: t('ever_enrolled_sub', { archived: allStudents.length - students.length }),
+    },
   ];
 
   return (
@@ -55,13 +60,14 @@ export default function Dashboard({ students, payments, academyName, onRecordPay
         </button>
       </div>
 
-      <div className="stats-row">
+      <div className="stats-row dash-stats">
         {stats.map((st, i) => (
           <div key={st.key} className={`stat-card ${st.key}`} style={{ animationDelay: `${i * 60}ms` }}>
             <div className="stat-icon"><Icon name={st.icon} size={20} /></div>
             <div>
               <div className="num">{st.num}</div>
               <div className="label">{st.label}</div>
+              {st.sub && <div className="stat-sub muted">{st.sub}</div>}
             </div>
           </div>
         ))}

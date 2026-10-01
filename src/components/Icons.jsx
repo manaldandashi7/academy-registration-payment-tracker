@@ -70,6 +70,7 @@ const PATHS = {
   edit: <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   scale: <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0L5 7zM19 7l-3 7a3 3 0 0 0 6 0l-3-7z" />,
+  download: <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />,
   receipt: <path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2V3zM9 8h6M9 12h6M9 16h3" />,
   search: (
     <>

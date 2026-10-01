@@ -226,6 +226,13 @@ main { flex: 1; padding: 32px 40px 48px; max-width: 1180px; min-width: 0; }
 .btn-cta:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 30px; }
+/* Dashboard has five cards: one row of five on laptop screens, narrower
+   cards wrapping on tablets, one column on phones (see the mobile rules). */
+.stats-row.dash-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+@media (min-width: 1100px) { .stats-row.dash-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+/* Narrower screens: the all-time card takes its own full row instead of sitting alone half-empty. */
+@media (max-width: 1099px) { .dash-stats .stat-card.ever { grid-column: 1 / -1; } }
+.dash-stats .stat-card { padding: 16px 14px; gap: 12px; }
 .stat-card {
   display: flex; align-items: center; gap: 14px;
   background: var(--paper-raised); border: 1px solid var(--line);
@@ -243,6 +250,8 @@ main { flex: 1; padding: 32px 40px 48px; max-width: 1180px; min-width: 0; }
 .stat-card.duesoon .stat-icon { background: var(--warn-bg); color: var(--warn); }
 .stat-card.ok .stat-icon { background: var(--ok-bg); color: var(--ok); }
 .stat-card.total .stat-icon { background: var(--lv4-soft); color: var(--lv4-text); }
+.stat-card.ever .stat-icon { background: var(--exp-purple-soft); color: var(--exp-purple-text); }
+.stat-sub.muted { color: var(--muted); font-weight: 500; }
 .stat-card.income .num { color: var(--brand); }
 .stat-card.expense .num { color: var(--danger); }
 .stat-sub { font-size: 12px; font-weight: 600; margin-top: 3px; }
@@ -294,17 +303,21 @@ main { flex: 1; padding: 32px 40px 48px; max-width: 1180px; min-width: 0; }
 .attention-due { min-width: 150px; }
 .attention-due .student-sub { margin-top: 3px; }
 
+/* `separate` (not `collapse`): a collapsed table's own border can't be
+   rounded, so it stayed square around rounded corner cells - and a highlighted
+   last row showed white slivers in its corners. Only bottom borders are used
+   on cells, so nothing doubles up. */
 table {
-  width: 100%; border-collapse: collapse; background: var(--paper-raised);
-  border: 1px solid var(--line); box-shadow: var(--shadow);
+  width: 100%; border-collapse: separate; border-spacing: 0; background: var(--paper-raised);
+  border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
 }
-/* Rounded corners applied to the corner cells themselves rather than
-   `overflow: hidden` on <table> - that would also clip the row-menu dropdown,
-   which needs to pop out past the table's edge. */
-thead tr:first-child th:first-child { border-start-start-radius: 18px; }
-thead tr:first-child th:last-child { border-start-end-radius: 18px; }
-tbody tr:last-child td:first-child { border-end-start-radius: 18px; }
-tbody tr:last-child td:last-child { border-end-end-radius: 18px; }
+/* Corner cells are rounded too (17px = the table's 18px minus its 1px
+   border), rather than `overflow: hidden` on <table> - that would clip
+   anything meant to pop out past the table's edge. */
+thead tr:first-child th:first-child { border-start-start-radius: 17px; }
+thead tr:first-child th:last-child { border-start-end-radius: 17px; }
+tbody tr:last-child td:first-child { border-end-start-radius: 17px; }
+tbody tr:last-child td:last-child { border-end-end-radius: 17px; }
 thead th {
   text-align: start; font-weight: 600; font-size: 12.5px; color: var(--muted);
   padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--paper);
@@ -441,6 +454,22 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .balance-collect-text { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .balance-note { margin-top: 12px; font-size: 12.5px; color: var(--warn); background: var(--warn-bg); border-radius: 10px; padding: 8px 12px; }
 .app[dir="rtl"] .balance-num { font-family: "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif; }
+/* Archive window: the student's dates, then what the chosen stop date means */
+.archive-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 16px;
+}
+.archive-facts div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.archive-facts span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.archive-facts strong { font-size: 14px; }
+.archive-outcome {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 4px;
+  background: var(--brand-soft); color: var(--brand); border-radius: 12px;
+  padding: 10px 12px; font-size: 13px; font-weight: 600; line-height: 1.45;
+}
+.archive-outcome .icon { margin-top: 1px; }
+
 .balance-table tr.clickable { cursor: pointer; }
 .balance-table tbody tr.clickable:hover td { background: var(--brand-soft); }
 .balance-table tbody tr.selected td { background: var(--brand-soft); }
@@ -501,7 +530,7 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .month-meta strong { color: var(--brand); font-size: 15px; }
 .month-empty { padding: 4px 18px 18px; color: var(--muted); font-size: 13.5px; }
 /* The month card is already the frame - the table inside doesn't need its own. */
-.month-group table { border: none; box-shadow: none; border-top: 1px solid var(--line); background: transparent; }
+.month-group table { border: none; box-shadow: none; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
 .month-group thead tr:first-child th:first-child,
 .month-group thead tr:first-child th:last-child { border-radius: 0; }
 
@@ -1005,6 +1034,7 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .settings-row-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .settings-row-copy strong { font-size: 14.5px; }
 .settings-row-copy span { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.settings-row-copy .backup-last { margin-top: 4px; font-weight: 600; color: var(--brand); }
 .danger-row { background: var(--danger-bg); border-color: transparent; }
 .danger-row .settings-row-icon { background: rgba(176, 71, 46, 0.14); color: var(--danger); }
 .danger-row .settings-row-copy strong { color: var(--danger); }
@@ -1064,6 +1094,13 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   table, thead, tbody { display: block; width: 100%; }
   thead { display: none; }
   tbody tr { display: block; border-bottom: 8px solid var(--paper); padding: 10px 0; }
+  /* No gap strip after the last card - it cut across the rounded bottom. */
+  tbody tr:last-child { border-bottom: none; }
+  /* Rows are stacked cards here, so a highlighted row's square background
+     would poke out of the rounded corners; clipping is safe since the ⋯ menu
+     is rendered outside the table. */
+  table { overflow: hidden; }
+  .balance-table tbody tr.selected { background: var(--brand-soft); }
   tbody td { display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding: 6px 14px; gap: 10px; }
   tbody td:before { content: attr(data-label); color: var(--muted); font-size: 12px; font-weight: 600; }
   .row-actions { justify-content: flex-end; }

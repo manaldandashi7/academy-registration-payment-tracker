@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useLanguage } from '../i18n.jsx';
 import { monthLabel, currentMonthKey } from '../lib/dateUtils';
-import { summarizeMonth, balanceMonthKeys } from '../lib/monthlySummary';
+import { summarizeMonth, balanceMonthKeys, buildPlans } from '../lib/monthlySummary';
 import MonthBalance from './MonthBalance.jsx';
 
-// The academy's monthly balance: expected income (active students' fees)
-// minus that month's expenses. The card shows one month (this month to
-// start with); clicking a row in the table below shows that month instead.
+// The academy's monthly balance: expected income (students' fees in the
+// months they're enrolled - see lib/monthlySummary.js) minus that month's
+// expenses. The card shows one month (this month to start with); clicking a
+// row in the table below shows that month instead.
 export default function BalancePage({ students, payments, expenses }) {
   const { t, locale } = useLanguage();
   const [selectedKey, setSelectedKey] = useState(currentMonthKey);
-  const rows = balanceMonthKeys({ students, expenses }).map((k) => summarizeMonth(k, { students, payments, expenses }));
+  // `students` includes archived ones: they still count in the months before their stop date.
+  const plans = buildPlans(students, payments);
+  const rows = balanceMonthKeys({ students, expenses }).map((k) => summarizeMonth(k, { students, payments, expenses, plans }));
   const selected = rows.find((r) => r.monthKey === selectedKey) || rows[0];
 
   return (

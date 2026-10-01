@@ -173,6 +173,24 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
           return;
         }
 
+        // Email already registered: on purpose, Supabase still answers "created"
+        // (so the form can't be used to find out who has an account) but sends
+        // no email - the only sign is an empty `identities` list. Say so plainly
+        // and switch to login with the email kept, instead of "check your email"
+        // for an email that's never coming.
+        if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          setPassword('');
+          setConfirmPassword('');
+          setConfirmEmail('');
+          setAuthMode('login');
+          setError(
+            isArabic
+              ? 'هذا البريد الإلكتروني لديه حساب بالفعل. يرجى تسجيل الدخول، أو استخدم "نسيت كلمة المرور؟" إذا لم تتذكرها.'
+              : 'This email already has an account. Please log in, or use "Forgot password?" if you don’t remember the password.'
+          );
+          return;
+        }
+
         if (data?.user && !data.session) {
           setStatusMessage(
             isArabic

@@ -4,9 +4,18 @@ import Icon from './Icons.jsx';
 import { useLanguage } from '../i18n.jsx';
 import { useDialog } from '../dialog.jsx';
 import { validateProfile, image as validateImage, passwordLength, errText, LIMITS } from '../lib/validate';
+import { selectAll } from '../lib/selectAll';
+import { downloadBackup } from '../lib/exportData';
+import { isoOf, fmtDate, parseISODateLocal } from '../lib/dateUtils';
+
+// When this device last downloaded a backup (YYYY-MM-DD), shown under the button.
+const LAST_BACKUP_KEY = 'mahara.lastBackup';
+function readLastBackup() {
+  try { return localStorage.getItem(LAST_BACKUP_KEY) || ''; } catch { return ''; }
+}
 
 export default function SettingsModal({ settings, onClose, onAcademyProfileDeleted }) {
-  const { t } = useLanguage();
+  const { t, dir, locale } = useLanguage();
   const { confirm, notify } = useDialog();
   const [activeTab, setActiveTab] = useState('profile');
   const [name, setName] = useState(settings.academy_name || '');
@@ -29,6 +38,8 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
   const [archivedStudents, setArchivedStudents] = useState([]);
   const [archivedLoading, setArchivedLoading] = useState(false);
   const [archiveActionId, setArchiveActionId] = useState(null);
+  const [backingUp, setBackingUp] = useState(false);
+  const [lastBackup, setLastBackup] = useState(readLastBackup);
 
   const passwordStrength = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
   const passwordMeter = [
@@ -338,7 +349,12 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
 
   async function handleRestoreStudent(student) {
     setArchiveActionId(student.id);
-    const { error } = await supabase.from('students').update({ active: true }).eq('id', student.id);
+    // Clears the stop date too, so they count normally again. If
+    // student_stopped_from.sql hasn't been run, there's no date to clear.
+    let { error } = await supabase.from('students').update({ active: true, stopped_from: null }).eq('id', student.id);
+    if (error && /stopped_from/i.test(error.message)) {
+      ({ error } = await supabase.from('students').update({ active: true }).eq('id', student.id));
+    }
     setArchiveActionId(null);
     if (error) {
       notify({ message: t('restore_failed', { msg: error.message }), danger: true });
@@ -368,6 +384,43 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
       return;
     }
     setArchivedStudents((list) => list.filter((s) => s.id !== student.id));
+  }
+
+  // Reads everything fresh from the database (not what's on screen), so the
+  // file is complete even if this page was opened a while ago.
+  async function handleBackup() {
+    setError('');
+    setBackingUp(true);
+    try {
+      const [studentsRes, paymentsRes, expensesRes, settingsRes] = await Promise.all([
+        selectAll('students'),
+        selectAll('payments'),
+        selectAll('expenses'),
+        supabase.from('settings').select('*').maybeSingle(),
+      ]);
+      // A missing expenses table only means expenses.sql was never run - back up the rest.
+      const expensesMissing = expensesRes.error && /relation .*expenses.* does not exist/i.test(expensesRes.error.message);
+      if (studentsRes.error || paymentsRes.error || (expensesRes.error && !expensesMissing) || settingsRes.error) {
+        setError(t('backup_failed'));
+        return;
+      }
+      const today = isoOf(new Date());
+      await downloadBackup(
+        {
+          students: studentsRes.data,
+          payments: paymentsRes.data,
+          expenses: expensesRes.data || [],
+          settings: settingsRes.data || settings,
+        },
+        { t, rtl: dir === 'rtl', isoDate: today },
+      );
+      try { localStorage.setItem(LAST_BACKUP_KEY, today); } catch { /* storage blocked */ }
+      setLastBackup(today);
+    } catch {
+      setError(t('backup_failed'));
+    } finally {
+      setBackingUp(false);
+    }
   }
 
   function openPasswordModal() {
@@ -576,6 +629,20 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
         ) : activeTab === 'account' ? (
           <div className="settings-panel">
             <div className="settings-row">
+              <div className="settings-row-icon"><Icon name="download" size={20} /></div>
+              <div className="settings-row-copy">
+                <strong>{t('backup_title')}</strong>
+                <span>{t('backup_help')}</span>
+                <span className="backup-last">
+                  {lastBackup ? t('backup_last', { date: fmtDate(parseISODateLocal(lastBackup), locale) }) : t('backup_never')}
+                </span>
+              </div>
+              <button type="button" className="btn primary" onClick={handleBackup} disabled={backingUp}>
+                {backingUp ? t('backup_working') : t('backup_btn')}
+              </button>
+            </div>
+
+            <div className="settings-row">
               <div className="settings-row-icon"><Icon name="lock" size={20} /></div>
               <div className="settings-row-copy">
                 <strong>{t('password')}</strong>
@@ -614,7 +681,10 @@ export default function SettingsModal({ settings, onClose, onAcademyProfileDelet
                     <span className={`level-chip lv-${s.level}`}>{s.level}</span>
                     <div className="settings-row-copy">
                       <strong>{s.name}</strong>
-                      <span>{s.class}</span>
+                      <span>
+                        {s.class}
+                        {s.stopped_from && ` · ${t('stopped_from_tag', { date: fmtDate(parseISODateLocal(s.stopped_from), locale) })}`}
+                      </span>
                     </div>
                     <div className="row-actions">
                       <button type="button" className="btn" disabled={archiveActionId === s.id} onClick={() => handleRestoreStudent(s)}>

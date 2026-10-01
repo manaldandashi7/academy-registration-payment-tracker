@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
+import { selectAll } from './lib/selectAll';
 import Login from './components/Login.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import LevelPage from './components/LevelPage.jsx';
 import IncomeReport from './components/IncomeReport.jsx';
 import BalancePage from './components/BalancePage.jsx';
+import ArchiveModal from './components/ArchiveModal.jsx';
 import PaymentsPage from './components/PaymentsPage.jsx';
 import ExpensesReport from './components/ExpensesReport.jsx';
 import StudentModal from './components/StudentModal.jsx';
@@ -70,6 +72,7 @@ export default function App() {
   const [paymentModalStudentId, setPaymentModalStudentId] = useState(null);
   const [editingPayment, setEditingPayment] = useState(null); // an existing payment row being viewed/edited
   const [expenseModal, setExpenseModal] = useState(null); // { expense } | null
+  const [archivingStudent, setArchivingStudent] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // True once the first load has finished for the current sign-in - lets the
   // dashboard show a loading state instead of briefly flashing "no students yet"
@@ -176,9 +179,10 @@ export default function App() {
       // All students, archived included: the Payments page still needs the
       // names behind an archived student's past payments. Everything else
       // uses the active-only list derived from this below.
-      supabase.from('students').select('*'),
-      supabase.from('payments').select('*'),
-      supabase.from('expenses').select('*'),
+      // selectAll pages past Supabase's 1000-rows-per-request cap.
+      selectAll('students'),
+      selectAll('payments'),
+      selectAll('expenses'),
       // No .eq() filter here on purpose: the database's own rules only ever
       // return this signed-in academy's own row, so there is at most one.
       supabase.from('settings').select('*').maybeSingle(),
@@ -325,11 +329,9 @@ export default function App() {
     );
   }
 
-  async function handleArchiveStudent(student) {
-    const ok = await confirm({ title: t('archive'), message: t('archive_confirm', { name: student.name }), confirmLabel: t('archive') });
-    if (!ok) return;
-    const { error } = await supabase.from('students').update({ active: false }).eq('id', student.id);
-    if (error) notify({ message: t('archive_failed', { msg: error.message }), danger: true });
+  // Opens ArchiveModal, which asks from which date the fee stops being expected.
+  function handleArchiveStudent(student) {
+    setArchivingStudent(student);
   }
 
   async function handleDeleteStudent(student) {
@@ -409,6 +411,7 @@ export default function App() {
         {view === 'dashboard' && (
           <Dashboard
             students={students}
+            allStudents={allStudents}
             payments={payments}
             academyName={settings.academy_name}
             onRecordPayment={(id) => setPaymentModalStudentId(id)}
@@ -445,7 +448,7 @@ export default function App() {
 
         {view === 'income' && <IncomeReport payments={payments} expenses={expenses} />}
 
-        {view === 'balance' && <BalancePage students={students} payments={payments} expenses={expenses} />}
+        {view === 'balance' && <BalancePage students={allStudents} payments={payments} expenses={expenses} />}
 
         {view === 'expenses' && (
           <ExpensesReport
@@ -488,6 +491,18 @@ export default function App() {
         <ExpenseModal
           expense={expenseModal.expense}
           onClose={() => setExpenseModal(null)}
+        />
+      )}
+
+      {archivingStudent && (
+        <ArchiveModal
+          student={archivingStudent}
+          payments={payments}
+          onClose={() => setArchivingStudent(null)}
+          onArchived={({ dateSkipped }) => {
+            setArchivingStudent(null);
+            if (dateSkipped) notify({ message: t('archive_date_skipped') });
+          }}
         />
       )}
 
