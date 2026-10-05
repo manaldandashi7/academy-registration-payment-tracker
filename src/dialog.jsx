@@ -1,16 +1,26 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Icon from './components/Icons.jsx';
 import { useLanguage } from './i18n.jsx';
 
 // Replaces the browser's native confirm()/alert() with a dialog styled like
 // the rest of the app. Both are Promise-based so call sites can just
 // `await confirm(...)` / `await notify(...)` the same way they used to call
-// the native versions.
+// the native versions. `toast(message)` is the quiet one: a short success
+// message at the bottom of the screen that disappears by itself.
 const DialogContext = createContext(null);
 
 export function DialogProvider({ children }) {
-  const { t } = useLanguage();
+  const { t, dir } = useLanguage();
   const [dialog, setDialog] = useState(null); // { kind, title, message, danger, confirmLabel, cancelLabel, resolve }
+  const [toastMsg, setToastMsg] = useState(null); // { id, message }
+  const toastTimer = useRef(null);
+
+  const toast = useCallback((message) => {
+    clearTimeout(toastTimer.current);
+    setToastMsg({ id: Date.now(), message });
+    toastTimer.current = setTimeout(() => setToastMsg(null), 4500);
+  }, []);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
   const confirm = useCallback((opts) => new Promise((resolve) => {
     setDialog({ kind: 'confirm', ...opts, resolve });
@@ -35,8 +45,14 @@ export function DialogProvider({ children }) {
   }, [dialog, close]);
 
   return (
-    <DialogContext.Provider value={{ confirm, notify }}>
+    <DialogContext.Provider value={{ confirm, notify, toast }}>
       {children}
+      {toastMsg && (
+        <div key={toastMsg.id} className="toast" dir={dir} role="status" aria-live="polite" onClick={() => setToastMsg(null)}>
+          <span className="toast-icon"><Icon name="check" size={16} /></span>
+          <span>{toastMsg.message}</span>
+        </div>
+      )}
       {dialog && (
         <div
           className="overlay"

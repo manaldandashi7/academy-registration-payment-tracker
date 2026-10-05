@@ -166,6 +166,12 @@ export const STRINGS = {
     notes_ph: 'Anything worth noting',
     save_payment: 'Save payment',
 
+    // payment saved
+    payment_saved_toast: (p) => `Payment${p.amount ? ` of ${p.amount}` : ''} recorded for ${p.name}.${p.date ? ` Next payment due ${p.date}.` : ''}`,
+    payment_updated_toast: (p) => `Payment for ${p.name} updated.`,
+    paid_badge: 'Paid',
+    paid_btn_title: (p) => `Paid until ${p.date}. Click to record another payment.`,
+
     // archiving: from which date the fee stops being expected
     archive_title: (p) => `Archive ${p.name}`,
     archive_sub: 'They’ll be hidden from lists. Their payment history is kept.',
@@ -468,6 +474,11 @@ export const STRINGS = {
     notes_optional: 'ملاحظات (اختياري)',
     notes_ph: 'أي ملاحظة تستحق الذكر',
     save_payment: 'حفظ الدفعة',
+
+    payment_saved_toast: (p) => `تم تسجيل دفعة${p.amount ? ` بقيمة ${p.amount}` : ''} لـ ${p.name}.${p.date ? ` الدفعة القادمة مستحقة في ${p.date}.` : ''}`,
+    payment_updated_toast: (p) => `تم تعديل دفعة ${p.name}.`,
+    paid_badge: 'مدفوع',
+    paid_btn_title: (p) => `مدفوع حتى ${p.date}. اضغط لتسجيل دفعة أخرى.`,
 
     archive_title: (p) => `أرشفة ${p.name}`,
     archive_sub: 'سيُخفى من القوائم مع الاحتفاظ بسجل دفعاته.',

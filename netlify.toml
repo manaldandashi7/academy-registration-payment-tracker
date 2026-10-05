@@ -1,0 +1,8 @@
+# The app is now hosted on Cloudflare Pages
+# (https://academy-registration-payment-tracker.pages.dev).
+# Netlify still watches this repo, so every push would rebuild and redeploy
+# there too, using up its free-plan credits. "exit 0" tells Netlify to skip
+# the build: the Netlify site keeps serving its last deployed version as a
+# fallback. Cloudflare Pages ignores this file.
+[build]
+  ignore = "exit 0"

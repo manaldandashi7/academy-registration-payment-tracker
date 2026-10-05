@@ -37,7 +37,9 @@ export default function Login({ settings, mode = 'login', onEnteredAcademy, onAc
   const [confirmPassword, setConfirmPassword] = useState('');
   const [academyDraftName, setAcademyDraftName] = useState('');
   const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(settings?.logo_url || null);
+  // Only a logo just picked in the setup form - never a copy of settings.logo_url,
+  // which would freeze whatever logo was on screen when this form first appeared.
+  const [logoPreview, setLogoPreview] = useState(null);
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(false);

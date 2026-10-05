@@ -7,7 +7,7 @@ import Icon from './Icons.jsx';
 
 // Records a new payment for `student`, or - when `payment` is passed - views
 // and edits an existing one (opened from the Payments page).
-export default function PaymentModal({ student, payment, payments, onClose }) {
+export default function PaymentModal({ student, payment, payments, onClose, onSaved }) {
   const { t, locale } = useLanguage();
   const isEdit = !!payment;
 
@@ -56,6 +56,13 @@ export default function PaymentModal({ student, payment, payments, onClose }) {
     if (error) {
       setError(error.message);
       return;
+    }
+    if (onSaved) {
+      // Next due date as it will be once this payment is counted.
+      const after = student
+        ? computeStatus(student, [...payments, { student_id: student.id, date_paid: checked.value.date_paid }]).dueDate
+        : null;
+      onSaved({ isEdit, amount: checked.value.amount, studentName: student?.name || '', nextDue: after });
     }
     onClose();
   }

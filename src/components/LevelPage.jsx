@@ -1,4 +1,4 @@
-import { computeStatus, fmtDate, parseISODateLocal } from '../lib/dateUtils';
+import { computeStatus, fmtDate, parseISODateLocal, isPaidForCurrentPeriod } from '../lib/dateUtils';
 import { buildReminderMessage, openWhatsApp } from '../lib/whatsapp';
 import Icon, { Friend } from './Icons.jsx';
 import RowMenu from './RowMenu.jsx';
@@ -72,7 +72,13 @@ export default function LevelPage({ level, students, payments, academyName, onAd
                 <td data-label={t('col_enrolled')}>{fmtDate(parseISODateLocal(s.enrollment_date), locale)}</td>
                 <td data-label={t('col_due_date')}>{fmtDate(info.dueDate, locale)}</td>
                 <td data-label={t('col_status')}>
-                  <span className={`badge ${info.status}`}>{statusLabel(info.status)}</span>
+                  {/* "Paid" only when a real payment covers today; back to the
+                      normal status on the due date (isPaidForCurrentPeriod). */}
+                  {isPaidForCurrentPeriod(info) ? (
+                    <span className="badge paid"><Icon name="check" size={12} />{t('paid_badge')}</span>
+                  ) : (
+                    <span className={`badge ${info.status}`}>{statusLabel(info.status)}</span>
+                  )}
                 </td>
                 <td data-label="">
                   <div className="row-actions">
@@ -82,7 +88,18 @@ export default function LevelPage({ level, students, payments, academyName, onAd
                     >
                       {t('whatsapp')}
                     </button>
-                    <button className="btn primary" onClick={() => onRecordPayment(s.id)}>{t('record_payment')}</button>
+                    {isPaidForCurrentPeriod(info) ? (
+                      <button
+                        className="btn paid"
+                        onClick={() => onRecordPayment(s.id)}
+                        title={t('paid_btn_title', { date: fmtDate(info.dueDate, locale) })}
+                      >
+                        <Icon name="check" size={14} />
+                        {t('paid_badge')}
+                      </button>
+                    ) : (
+                      <button className="btn primary" onClick={() => onRecordPayment(s.id)}>{t('record_payment')}</button>
+                    )}
                     <RowMenu
                       items={[
                         { label: t('edit'), icon: 'edit', onClick: () => onEditStudent(s) },

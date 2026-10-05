@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { selectAll } from './lib/selectAll';
+import { fmtDate } from './lib/dateUtils';
 import Login from './components/Login.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -22,6 +23,8 @@ const isValidAcademyName = (value) => {
   const trimmed = String(value).trim();
   return trimmed.length > 0 && trimmed !== 'Your Academy' && trimmed !== 'My Academy';
 };
+
+const DEFAULT_SETTINGS = { academy_name: 'Your Academy', logo_url: null, address: '', phone: '', owner_name: '' };
 
 const VALID_VIEW = /^(dashboard|payments|balance|income|expenses|level-[1-4])$/;
 
@@ -55,8 +58,8 @@ function viewFromHash() {
 }
 
 export default function App() {
-  const { t, dir } = useLanguage();
-  const { confirm, notify } = useDialog();
+  const { t, dir, locale } = useLanguage();
+  const { confirm, notify, toast } = useDialog();
   const [session, setSession] = useState(undefined); // undefined = not checked yet
   const [academyEntered, setAcademyEntered] = useState(false);
   const setupCompletedKey = 'academySetupCompleted';
@@ -65,7 +68,7 @@ export default function App() {
   const [allStudents, setAllStudents] = useState([]); // includes archived, for payment history
   const [payments, setPayments] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [settings, setSettings] = useState({ academy_name: 'Your Academy', logo_url: null, address: '', phone: '', owner_name: '' });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loadError, setLoadError] = useState('');
 
   const [studentModal, setStudentModal] = useState(null); // { student, presetLevel } | null
@@ -79,6 +82,32 @@ export default function App() {
   // before the real data arrives. Later, realtime-triggered reloads don't touch
   // this again, so those stay silent instead of re-showing the loading state.
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Everything above belongs to one signed-in academy. When the account
+  // changes (sign out, then a different academy signs in on the same open
+  // page), wipe it *during this render* - otherwise the previous academy's
+  // name, logo, students and payments stayed on screen until the new
+  // academy's data finished loading.
+  const currentUserId = session?.user?.id ?? null;
+  const currentUserRef = useRef(currentUserId);
+  currentUserRef.current = currentUserId;
+  const [dataOwnerId, setDataOwnerId] = useState(null);
+  if (session !== undefined && dataOwnerId !== currentUserId) {
+    setDataOwnerId(currentUserId);
+    setStudents([]);
+    setAllStudents([]);
+    setPayments([]);
+    setExpenses([]);
+    setSettings(DEFAULT_SETTINGS);
+    setLoadError('');
+    setDataLoaded(false);
+    setStudentModal(null);
+    setPaymentModalStudentId(null);
+    setEditingPayment(null);
+    setExpenseModal(null);
+    setArchivingStudent(null);
+    setSettingsOpen(false);
+  }
 
   // ---- auth ----
   useEffect(() => {
@@ -173,6 +202,10 @@ export default function App() {
 
   // ---- data loading + realtime, once signed in ----
   const loadAll = useCallback(async (isRetry = false) => {
+    // A load started for one account must never fill the screen of another
+    // (e.g. it finishes after a sign-out and a different sign-in).
+    const loadingFor = session?.user?.id ?? null;
+    const stale = () => currentUserRef.current !== loadingFor;
     setLoadError('');
     try {
     const [studentsRes, paymentsRes, expensesRes, settingsRes] = await Promise.all([
@@ -187,6 +220,7 @@ export default function App() {
       // return this signed-in academy's own row, so there is at most one.
       supabase.from('settings').select('*').maybeSingle(),
     ]);
+    if (stale()) return;
 
     // A request can transiently fail with a JWT complaint (e.g. "JWT issued at
     // future") right around a background token refresh - usually just a tiny
@@ -250,13 +284,9 @@ export default function App() {
       await supabase.from('settings').upsert({ ...defaultSettings, owner_id: session.user.id }, { onConflict: 'owner_id' });
     }
     } finally {
-      setDataLoaded(true);
+      if (!stale()) setDataLoaded(true);
     }
   }, [session]);
-
-  useEffect(() => {
-    setDataLoaded(false);
-  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -310,6 +340,20 @@ export default function App() {
   const isAcademyConfigured = isValidAcademyName(settings?.academy_name) || hasCompletedSetup;
   const needsAcademySetup = forceSetup || !isAcademyConfigured;
 
+  // Don't show the welcome/setup screen until this academy's own name and
+  // logo have arrived - it would otherwise show defaults (or decide on setup
+  // vs welcome) from data that isn't this academy's yet.
+  if (!academyEntered && !dataLoaded) {
+    return (
+      <div className="login-screen light-shell">
+        <div className="loading-state">
+          <div className="spinner" aria-hidden="true" />
+          <p>{t('loading')}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!academyEntered) {
     return (
       <Login
@@ -327,6 +371,20 @@ export default function App() {
         }}
       />
     );
+  }
+
+  // Confirms a saved payment, and reloads right away so statuses update
+  // without waiting for the realtime notice.
+  function handlePaymentSaved({ isEdit, amount, studentName, nextDue }) {
+    if (isEdit) toast(t('payment_updated_toast', { name: studentName }));
+    else {
+      toast(t('payment_saved_toast', {
+        name: studentName,
+        amount: amount != null ? Number(amount).toFixed(0) : '',
+        date: nextDue ? fmtDate(nextDue, locale) : '',
+      }));
+    }
+    loadAll();
   }
 
   // Opens ArchiveModal, which asks from which date the fee stops being expected.
@@ -475,6 +533,7 @@ export default function App() {
           student={paymentModalStudent}
           payments={payments}
           onClose={() => setPaymentModalStudentId(null)}
+          onSaved={handlePaymentSaved}
         />
       )}
 
@@ -484,6 +543,7 @@ export default function App() {
           student={allStudents.find((s) => s.id === editingPayment.student_id)}
           payments={payments}
           onClose={() => setEditingPayment(null)}
+          onSaved={handlePaymentSaved}
         />
       )}
 
@@ -512,7 +572,7 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
           onAcademyProfileDeleted={() => {
             setSession(null);
-            setSettings({ academy_name: 'Your Academy', logo_url: null, address: '', phone: '', owner_name: '' });
+            setSettings(DEFAULT_SETTINGS);
             setAcademyEntered(false);
             setSettingsOpen(false);
             if (typeof window !== 'undefined') {

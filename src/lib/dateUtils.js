@@ -90,3 +90,10 @@ export function computeStatus(student, payments) {
   else if (diffDays <= REMINDER_WINDOW_DAYS) status = 'duesoon';
   return { dueDate, diffDays, status, lastPaid };
 }
+
+/** True only when the student has a real recorded payment that still covers
+ * today (today is before last payment + 1 month). No payment at all -> false,
+ * even if the first due date is still ahead. On the due date it turns false. */
+export function isPaidForCurrentPeriod(info) {
+  return !!info.lastPaid && info.diffDays > 0;
+}

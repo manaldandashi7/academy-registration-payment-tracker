@@ -336,6 +336,8 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .badge.overdue { background: var(--danger-bg); color: var(--danger); }
 .badge.duesoon { background: var(--warn-bg); color: var(--warn); }
 .badge.ok { background: var(--ok-bg); color: var(--ok); }
+/* "Paid" - a recorded payment covers today (LevelPage). */
+.badge.paid { background: var(--ok); color: #fff; display: inline-flex; align-items: center; gap: 4px; }
 
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
@@ -373,6 +375,31 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
 .btn.primary:hover { filter: brightness(1.06); }
 .btn.whatsapp { background: #E1EEE4; border-color: #BEDACB; color: #1F5138; }
 .btn.whatsapp:hover { background: #d3e8da; }
+.btn.paid {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--paper-raised); border-color: var(--line); color: var(--ok); font-weight: 600;
+}
+.btn.paid:hover { border-color: var(--ok); }
+/* Same width as "Record payment" so the ⋯ buttons line up whichever one a row shows. */
+.row-actions .btn.paid, .row-actions .btn.primary { min-width: 10em; justify-content: center; }
+.row-actions .btn.primary { display: inline-flex; align-items: center; }
+/* Short success message at the bottom of the screen (dialog.jsx toast()). */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 60;
+  display: flex; align-items: center; gap: 10px; max-width: min(520px, calc(100vw - 32px));
+  background: var(--ink); color: var(--paper); border-radius: 14px; padding: 12px 16px;
+  font-size: 14px; font-weight: 500; line-height: 1.45; cursor: pointer;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+  animation: toast-in 0.25s ease both, toast-out 0.4s ease 4.1s both;
+}
+.toast-icon {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ok); color: #fff;
+}
+.toast[dir="rtl"] { font-family: "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes toast-out { to { opacity: 0; transform: translate(-50%, 10px); } }
 .btn.subtle { background: none; border-color: transparent; color: var(--muted); }
 .btn.subtle:hover { color: var(--ink); text-decoration: underline; }
 .btn.ghost { background: none; border-color: transparent; color: var(--muted); }
@@ -802,6 +829,15 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   transform: translateY(-2px) scale(1.01);
   box-shadow: 0 22px 35px rgba(230, 189, 122, 0.36);
   filter: brightness(1.01);
+}
+/* Visible "pressed" state - phones have no hover, so this is the only
+   feedback a tap gets. */
+.start-btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.start-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 8px 16px rgba(230, 189, 122, 0.3);
+  filter: brightness(0.95);
+  transition-duration: 0.08s;
 }
 .switch-account-link {
   display: block; margin: 16px auto 0; position: relative; z-index: 1;
@@ -1377,6 +1413,9 @@ tbody tr:hover { background: rgba(0,0,0,0.015); }
   filter: blur(12px);
   opacity: 0.7;
   animation: float-orb 8s ease-in-out infinite;
+  /* Decoration only. Drawn over the card, so without this they swallowed
+     taps - on phones the yellow one sits right on the Start button. */
+  pointer-events: none;
 }
 
 .login-screen::before {
