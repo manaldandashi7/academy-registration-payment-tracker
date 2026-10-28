@@ -13,7 +13,7 @@ import { monthKeyOf, currentMonthKey, computeStatus, addMonthsClamped, isoOf } f
 //   - an archived student counts only in months whose renewal falls before
 //     their stop date - the date staff picked when archiving (`stopped_from`),
 //     or, for students archived before that existed, their first unpaid
-//     renewal (last payment + 1 month).
+//     renewal (enrollment date + number of payments, in months).
 // That way archiving someone never changes the months they were really here.
 
 const toNumber = (v) => {

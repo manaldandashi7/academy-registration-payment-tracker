@@ -525,6 +525,9 @@ export default function App() {
           student={studentModal.student}
           presetLevel={studentModal.presetLevel}
           onClose={() => setStudentModal(null)}
+          // Reload right away so changed dates (e.g. enrollment) show at once,
+          // without waiting for the realtime notice.
+          onSaved={() => loadAll()}
         />
       )}
 

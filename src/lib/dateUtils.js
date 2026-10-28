@@ -78,22 +78,37 @@ export function lastPaymentFor(payments, studentId) {
   return latest;
 }
 
-/** { dueDate, diffDays, status, lastPaid } for one student */
+/** How many payments a student has - each payment pays for one month. */
+export function paymentCountFor(payments, studentId) {
+  let n = 0;
+  for (const p of payments) if (p.student_id === studentId) n += 1;
+  return n;
+}
+
+/** { dueDate, diffDays, status, lastPaid, paidCount } for one student.
+ *
+ * Billing always follows the enrollment day: each payment pays one month,
+ * so the next unpaid month starts at enrollment date + (number of payments)
+ * months. When a payment was made (early or late) doesn't move it - enrolled
+ * 1 Oct, paid 12 Oct -> due 1 Nov; paid again 5 Nov -> due 1 Dec. Editing
+ * the enrollment date moves every date with it. With no payment yet, the
+ * first month is due on the enrollment date itself. */
 export function computeStatus(student, payments) {
   const lastPaid = lastPaymentFor(payments, student.id);
-  const base = lastPaid || student.enrollment_date;
-  const dueDate = addMonthsClamped(base, 1);
+  const paidCount = paymentCountFor(payments, student.id);
+  // Always from the enrollment date (not chained month to month), so the day
+  // stays put: enrolled 31 Jan -> 28 Feb, 31 Mar, 30 Apr...
+  const dueDate = addMonthsClamped(student.enrollment_date, paidCount);
   const today = todayLocalMidnight();
   const diffDays = Math.round((dueDate - today) / 86400000);
   let status = 'ok';
   if (diffDays < 0) status = 'overdue';
   else if (diffDays <= REMINDER_WINDOW_DAYS) status = 'duesoon';
-  return { dueDate, diffDays, status, lastPaid };
+  return { dueDate, diffDays, status, lastPaid, paidCount };
 }
 
-/** True only when the student has a real recorded payment that still covers
- * today (today is before last payment + 1 month). No payment at all -> false,
- * even if the first due date is still ahead. On the due date it turns false. */
+/** True only when the student has at least one real recorded payment and
+ * their paid months still cover today. On the due date it turns false. */
 export function isPaidForCurrentPeriod(info) {
-  return !!info.lastPaid && info.diffDays > 0;
+  return info.paidCount > 0 && info.diffDays > 0;
 }

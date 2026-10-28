@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { isoOf, todayLocalMidnight, addMonthsClamped, fmtDate } from '../lib/dateUtils';
+import { isoOf, todayLocalMidnight, parseISODateLocal, fmtDate } from '../lib/dateUtils';
 import Icon from './Icons.jsx';
 import { validateStudent, errText, LIMITS } from '../lib/validate';
 import { useLanguage } from '../i18n.jsx';
 
-export default function StudentModal({ student, presetLevel, onClose }) {
+export default function StudentModal({ student, presetLevel, onClose, onSaved }) {
   const { t, locale } = useLanguage();
   const isEdit = !!student;
   const [name, setName] = useState(student?.name || '');
@@ -60,10 +60,14 @@ export default function StudentModal({ student, presetLevel, onClose }) {
       setError(error.message);
       return;
     }
+    if (onSaved) onSaved();
     onClose();
   }
 
-  const firstDue = enrollmentDate ? fmtDate(addMonthsClamped(enrollmentDate, 1), locale) : null;
+  // Billing follows the enrollment day (see computeStatus): the first month
+  // is due on the enrollment date, then on the same day every month.
+  const firstDue = /^\d{4}-\d{2}-\d{2}$/.test(enrollmentDate) ? fmtDate(parseISODateLocal(enrollmentDate), locale) : null;
+  const dueDay = firstDue ? Number(enrollmentDate.slice(8, 10)) : null;
 
   // Guards against exactly the scenario that motivated the lock in the first
   // place: pressing Edit swaps that button into Save (same spot), and a second
@@ -155,7 +159,7 @@ export default function StudentModal({ student, presetLevel, onClose }) {
           <div className="field">
             <label htmlFor="s_enrolled">{t('enrollment_date')}</label>
             <input id="s_enrolled" type="date" required min="2000-01-01" disabled={locked} value={enrollmentDate} onChange={(e) => setEnrollmentDate(e.target.value)} />
-            {firstDue && <div className="field-hint">{t('first_due', { date: firstDue })}</div>}
+            {firstDue && <div className="field-hint">{t('first_due', { day: dueDay, date: firstDue })}</div>}
           </div>
 
           {error && <div className="field-error">{error}</div>}
